@@ -1,0 +1,43 @@
+.yes:hover {
+     padding: 10px 20px;
+     border: none;
+     border-radius: 4px;
+     background-color: lawngreen;
+     color: #fff;
+     cursor: pointer;
+     transition: background-color 0.3s;
+     text-align: center;
+}
+
+.yes {
+     padding: 10px 20px;
+     border: none;
+     border-radius: 4px;
+     background-color: green;
+     color: #fff;
+     cursor: pointer;
+     transition: background-color 0.3s;
+     text-align: center;
+}
+
+.no {
+     padding: 10px 20px;
+     border: none;
+     border-radius: 4px;
+     background-color: maroon;
+     color: #fff;
+     cursor: pointer;
+     transition: background-color 0.3s;
+     text-align: center;
+}
+
+.no:hover {
+     padding: 10px 20px;
+     border: none;
+     border-radius: 4px;
+     background-color: red;
+     color: #fff;
+     cursor: pointer;
+     transition: background-color 0.3s;
+     text-align: center;
+}
