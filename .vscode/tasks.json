@@ -1,0 +1,38 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start React App",
+            "type": "shell",
+            "command": "npm start",
+            "options": {
+                "cwd": "${workspaceFolder}/my-app"
+            },
+            "presentation": {
+                "panel": "new"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Flask Server",
+            "type": "shell",
+            "command": "flask run",
+            "presentation": {
+                "panel": "new"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Start HTTP Server",
+            "type": "shell",
+            "command": "python -m http.server 7850",
+            "presentation": {
+                "panel": "new"
+            },
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}
