@@ -1,78 +1,80 @@
-from flask import Flask, request, jsonify, redirect, url_for
+from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
-from flask_bcrypt import Bcrypt
 import os
-from datetime import datetime, timezone
+import jwt
+from datetime import datetime, timedelta
+from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')
-app.config['SECRET_KEY'] = 'your_secret_key_here'
 CORS(app)
 
 db = SQLAlchemy(app)
-login_manager = LoginManager(app)
-bcrypt = Bcrypt(app)
 
-class User(UserMixin, db.Model):
+class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
     address = db.Column(db.String(120), nullable=False)
     phone_number = db.Column(db.String(20), nullable=False)
     profile_pic = db.Column(db.String(120), nullable=True)
     description_file = db.Column(db.String(120), nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+class Admin(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
 
 with app.app_context():
     db.create_all()
 
-@app.route('/register', methods=['POST'])
-def register():
-    data = request.form
-    hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-    new_user = User(
-        name=data['name'],
-        email=data['email'],
-        password=hashed_password,
-        address=data['address'],
-        phone_number=data['phone_number']
-    )
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({'message': 'User registered successfully'})
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'x-access-tokens' in request.headers:
+            token = request.headers['x-access-tokens']
+        if not token:
+            return jsonify({'message': 'Token is missing!'}), 401
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            current_user = Admin.query.filter_by(id=data['id']).first()
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message': 'Token has expired!'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'message': 'Token is invalid!'}), 401
+        return f(current_user, *args, **kwargs)
+    return decorated
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.form
-    user = User.query.filter_by(email=data['email']).first()
-    if user and bcrypt.check_password_hash(user.password, data['password']):
-        login_user(user)
-        return jsonify({'message': 'Login successful'})
-    return jsonify({'message': 'Invalid email or password'}), 401
+    auth = request.form
+    if not auth or not auth.get('username') or not auth.get('password'):
+        return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Login required!"'})
 
-@app.route('/logout', methods=['GET'])
-@login_required
-def logout():
-    logout_user()
-    return jsonify({'message': 'Logged out successfully'})
+    user = Admin.query.filter_by(username=auth.get('username')).first()
+
+    if not user:
+        return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Login required!"'})
+
+    if check_password_hash(user.password, auth.get('password')):
+        token = jwt.encode({'id': user.id, 'exp' : datetime.utcnow() + timedelta(minutes=30)}, app.config['SECRET_KEY'], algorithm="HS256")
+        return jsonify({'token' : token})
+
+    return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Login required!"'})
 
 @app.route('/users', methods=['GET'])
-@login_required
-def get_users():
+@token_required
+def get_users(current_user):
     users = User.query.all()
     return jsonify([{
         'id': user.id,
         'name': user.name,
-        'email': user.email,
         'address': user.address,
         'phone_number': user.phone_number,
         'profile_pic': user.profile_pic,
@@ -81,8 +83,8 @@ def get_users():
     } for user in users])
 
 @app.route('/user', methods=['POST'])
-@login_required
-def add_user():
+@token_required
+def add_user(current_user):
     data = request.form
     name = data['name']
     address = data['address']
@@ -104,25 +106,21 @@ def add_user():
     db.session.add(new_user)
     db.session.commit()
     
-    app.logger.info(f'Added new user: {new_user.name}')
-    
     return jsonify({'id': new_user.id})
 
 @app.route('/user/<int:id>', methods=['DELETE'])
-@login_required
-def delete_user(id):
+@token_required
+def delete_user(current_user, id):
     user = User.query.get(id)
     if user:
         db.session.delete(user)
         db.session.commit()
-        app.logger.info(f'Deleted user: {user.name}')
         return jsonify({'message': 'User deleted'})
-    app.logger.warning(f'Tried to delete non-existing user with id: {id}')
     return jsonify({'message': 'User not found'}), 404
 
 @app.route('/user/<int:id>', methods=['PUT'])
-@login_required
-def update_user(id):
+@token_required
+def update_user(current_user, id):
     user = User.query.get(id)
     if user:
         data = request.form
@@ -141,9 +139,7 @@ def update_user(id):
             user.description_file = description_file.filename
 
         db.session.commit()
-        app.logger.info(f'Updated user: {user.name}')
         return jsonify({'message': 'User updated'})
-    app.logger.warning(f'Tried to update non-existing user with id: {id}')
     return jsonify({'message': 'User not found'}), 404
 
 if __name__ == '__main__':

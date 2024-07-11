@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import moment from 'moment-timezone';
+import { isLoggedIn } from 'login/auth/AuthWrapper';
+
 
 function App() {
   const [users, setUsers] = useState([]);
@@ -11,19 +14,27 @@ function App() {
   const [descriptionFile, setDescriptionFile] = useState(null);
   const [editUserId, setEditUserId] = useState(null);
   const [error, setError] = useState({ name: '', address: '', phoneNumber: '', profilePic: '', descriptionFile: '' });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (isLoggedIn) {
+      fetchUsers();
+    }
+  }, [isLoggedIn]);
 
   const fetchUsers = async () => {
+    const token = localStorage.getItem('token');
     try {
-      const response = await fetch('http://127.0.0.1:5000/users');
+      const response = await fetch('http://127.0.0.1:5000/users', {
+        headers: {
+          'x-access-tokens': token,
+        },
+      });
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
       const data = await response.json();
-      console.log('Fetched users:', data); // Debugging: log fetched data
+      console.log('Fetched users:', data);
       setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -57,6 +68,7 @@ function App() {
   };
 
   const addUser = async () => {
+    const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('name', name);
     formData.append('address', address);
@@ -67,6 +79,9 @@ function App() {
     try {
       const response = await fetch('http://127.0.0.1:5000/user', {
         method: 'POST',
+        headers: {
+          'x-access-tokens': token,
+        },
         body: formData,
       });
       if (response.ok) {
@@ -85,6 +100,7 @@ function App() {
   };
 
   const updateUser = async (id) => {
+    const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('name', name);
     formData.append('address', address);
@@ -95,6 +111,9 @@ function App() {
     try {
       const response = await fetch(`http://127.0.0.1:5000/user/${id}`, {
         method: 'PUT',
+        headers: {
+          'x-access-tokens': token,
+        },
         body: formData,
       });
       if (response.ok) {
@@ -114,9 +133,13 @@ function App() {
   };
 
   const deleteUser = async (id) => {
+    const token = localStorage.getItem('token');
     try {
       const response = await fetch(`http://127.0.0.1:5000/user/${id}`, {
         method: 'DELETE',
+        headers: {
+          'x-access-tokens': token,
+        },
       });
       if (response.ok) {
         fetchUsers();
@@ -160,81 +183,87 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <h1>User Management</h1>
-      <main>
-        <div>
-          <h2>{editUserId ? 'Edit User' : 'Add User'}</h2>
-          <form>
-            <input
-              type="text"
-              placeholder="Name"
-              value={name}
-              onChange={handleNameChange}
-            />
-            {error.name && <div className="error">{error.name}</div>}
-            <input
-              type="text"
-              placeholder="Address"
-              value={address}
-              onChange={handleAddressChange}
-            />
-            {error.address && <div className="error">{error.address}</div>}
-            <input
-              type="text"
-              placeholder="Phone Number"
-              value={phoneNumber}
-              onChange={handlePhoneNumberChange}
-            />
-            {error.phoneNumber && <div className="error">{error.phoneNumber}</div>}
-            <input type="file" onChange={handleProfilePicChange} />
-            {error.profilePic && <div className="error">{error.profilePic}</div>}
-            <input type="file" onChange={handleDescriptionFileChange} />
-            {error.descriptionFile && <div className="error">{error.descriptionFile}</div>}
-            <button type="button" onClick={handleSubmit}>
-              {editUserId ? 'Update User' : 'Add User'}
-            </button>
-          </form>
-        </div>
-        <div className="users-list">
-          <h2>Users</h2>
-          <ul>
-            {users.length > 0 ? (
-              users.map(user => (
-                <li key={user.id}>
-                  <div className='profile-pic'>
-                    <img
-                      src={`http://localhost:7850/uploads/photos/${user.profile_pic}`}
-                      alt={user.name}
-                      onError={(e) => {
-                      }}
-                    />
-                    <span>{user.name}</span>
-                    <span>{user.address}</span>
-                    <span>{user.phone_number}</span>
-                    <span>Created At: {convertToLocalTime(user.created_at)}</span>
-                  </div>
-                  <div className="table-actions">
-                    <button className="edit" onClick={() => handleEdit(user)}>Edit</button>
-                    <button className="delete" onClick={() => deleteUser(user.id)}>Delete</button>
-                    <a
-                      href={`http://localhost:7850/uploads/docs/${user.description_file}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                    >
-                      Download Description
-                    </a>
-                  </div>
-                </li>
-              ))
-            ) : (
-              <li>No users found</li>
-            )}
-          </ul>
-        </div>
-      </main>
-    </div>
+    <Router>
+      <div className="App">
+        <Route path="/dashboard">
+          {isLoggedIn === "authenticated" ?
+            <main>
+              <div>
+                <h2>{editUserId ? 'Edit User' : 'Add User'}</h2>
+                <form>
+                  <input
+                    type="text"
+                    placeholder="Name"
+                    value={name}
+                    onChange={handleNameChange}
+                  />
+                  {error.name && <div className="error">{error.name}</div>}
+                  <input
+                    type="text"
+                    placeholder="Address"
+                    value={address}
+                    onChange={handleAddressChange}
+                  />
+                  {error.address && <div className="error">{error.address}</div>}
+                  <input
+                    type="text"
+                    placeholder="Phone Number"
+                    value={phoneNumber}
+                    onChange={handlePhoneNumberChange}
+                  />
+                  {error.phoneNumber && <div className="error">{error.phoneNumber}</div>}
+                  <input type="file" onChange={handleProfilePicChange} />
+                  {error.profilePic && <div className="error">{error.profilePic}</div>}
+                  <input type="file" onChange={handleDescriptionFileChange} />
+                  {error.descriptionFile && <div className="error">{error.descriptionFile}</div>}
+                  <button type="button" onClick={handleSubmit}>
+                    {editUserId ? 'Update User' : 'Add User'}
+                  </button>
+                </form>
+              </div>
+              <div className="users-list">
+                <h2>Users</h2>
+                <ul>
+                  {users.length > 0 ? (
+                    users.map(user => (
+                      <li key={user.id}>
+                        <div className='profile-pic'>
+                          <img
+                            src={`http://localhost:7850/uploads/photos/${user.profile_pic}`}
+                            alt={user.name}
+                            onError={(e) => {
+                            }}
+                          />
+                          <span>{user.name}</span>
+                          <span>{user.address}</span>
+                          <span>{user.phone_number}</span>
+                          <span>Created At: {convertToLocalTime(user.created_at)}</span>
+                        </div>
+                        <div className="table-actions">
+                          <button className="edit" onClick={() => handleEdit(user)}>Edit</button>
+                          <button className="delete" onClick={() => deleteUser(user.id)}>Delete</button>
+                          <a
+                            href={`http://localhost:7850/uploads/docs/${user.description_file}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download
+                          >
+                            Download Description
+                          </a>
+                        </div>
+                      </li>
+                    ))
+                  ) : (
+                    <li>No users found</li>
+                  )}
+                </ul>
+              </div>
+            </main>
+            : <Navigate to="login/src/index.js" />
+          }
+        </Route>
+      </div>
+    </Router>
   );
 }
 
