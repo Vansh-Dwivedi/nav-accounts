@@ -1,3 +1,4 @@
+import React from "react"
 import { About } from "../pages/About"
 import { Account } from "../pages/Account"
 import { Home } from "../pages/Home"

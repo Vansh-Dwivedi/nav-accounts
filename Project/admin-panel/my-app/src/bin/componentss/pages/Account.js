@@ -1,3 +1,4 @@
+import React from "react";
 import { AuthData } from "../../auth/AuthWrapper"
 
 export const Account = () => {

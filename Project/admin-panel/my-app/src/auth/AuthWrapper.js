@@ -4,7 +4,7 @@ import { RenderMenu, RenderRoutes } from "../componentss/structure/RenderNavigat
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-export let isLoggedIn = false;
+export let isLoggedIn = "unauthenticated";
 const AuthContext = createContext();
 export const AuthData = () => useContext(AuthContext);
 

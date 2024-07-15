@@ -1,3 +1,4 @@
+import React from "react";
 import { Link, Route, Routes } from "react-router-dom";
 import { AuthData } from "../../auth/AuthWrapper";
 import { nav } from "./navigation";
