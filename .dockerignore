@@ -1,0 +1,12 @@
+__pycache__
+node_modules
+*.pyc
+*.pyo
+*.pydcd ...
+build
+dist
+*.db
+*.sqlite3
+.DS_Store
+.dockerignore
+Dockerfile
