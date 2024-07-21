@@ -1,26 +1,26 @@
-# Base image for Python
+# Stage 1: Base image for Python
 FROM python:3.9 AS python-base
 
 # Set the working directory for Python
 WORKDIR /project/admin-panel
 
-# Copy the requirements file
-COPY /project/admin-panel/requirements.txt .
+# Copy the requirements file first to leverage Docker cache
+COPY project/admin-panel/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the Python code
-COPY /project/admin-panel/ .
+COPY project/admin-panel/ .
 
-# Base image for Node.js
+# Stage 2: Base image for Node.js
 FROM node:14 AS node-base
 
 # Set the working directory for Node.js
 WORKDIR /project/admin-panel/my-app
 
-# Copy the package.json and package-lock.json
-COPY /project/admin-panel/my-app/package*.json ./
+# Copy the package.json and package-lock.json first to leverage Docker cache
+COPY project/admin-panel/my-app/package*.json ./
 
 # Install Node.js dependencies
 RUN npm install
@@ -28,8 +28,14 @@ RUN npm install
 # Copy the rest of the Node.js code
 COPY project/admin-panel/my-app/ .
 
-# Final stage for combining Python and Node.js services
+# Final stage: Combine Python and Node.js environments
 FROM python:3.9-slim
+
+# Install Node.js in the final image
+RUN apt-get update && apt-get install -y curl gnupg && curl -sL https://deb.nodesource.com/setup_14.x | bash - && apt-get install -y nodejs
+
+# Install Flask
+RUN pip install Flask
 
 # Set the working directory
 WORKDIR /project
